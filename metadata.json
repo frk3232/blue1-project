@@ -1,0 +1,5 @@
+{
+  "name": "Blue1",
+  "description": "Proactive urban mobility solution using predictive AI to solve traffic congestion and improve road safety.",
+  "requestFramePermissions": ["geolocation"]
+}

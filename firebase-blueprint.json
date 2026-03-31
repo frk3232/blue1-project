@@ -1,0 +1,72 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user profile information and roles.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The unique identifier for the user." },
+        "email": { "type": "string", "format": "email", "description": "The user's email address." },
+        "role": { "type": "string", "enum": ["user", "admin"], "description": "The user's role in the application." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the user profile was created." }
+      },
+      "required": ["uid", "email", "role", "createdAt"]
+    },
+    "SafetyHotspot": {
+      "title": "Safety Hotspot",
+      "description": "Represents a location with a specific risk level for traffic or safety.",
+      "type": "object",
+      "properties": {
+        "locationName": { "type": "string", "description": "Name of the location." },
+        "coordinates": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          },
+          "required": ["lat", "lng"]
+        },
+        "riskLevel": { "type": "string", "enum": ["Low", "Med", "High"], "description": "The risk level of the hotspot." }
+      },
+      "required": ["locationName", "coordinates", "riskLevel"]
+    },
+    "TrafficLog": {
+      "title": "Traffic Log",
+      "description": "Logs traffic data for a specific route and user.",
+      "type": "object",
+      "properties": {
+        "routeId": { "type": "string", "description": "Summary or ID of the route." },
+        "currentTravelTime": { "type": "number", "description": "Travel time in seconds." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "When the log was created." },
+        "userId": { "type": "string", "description": "The UID of the user who generated the log." }
+      },
+      "required": ["routeId", "currentTravelTime", "timestamp", "userId"]
+    },
+    "TestConnection": {
+      "title": "Connection Test",
+      "description": "Used to verify Firestore connectivity.",
+      "type": "object",
+      "properties": {
+        "status": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Collection of user profiles."
+    },
+    "safety_hotspots/{hotspotId}": {
+      "schema": "SafetyHotspot",
+      "description": "Collection of safety hotspots."
+    },
+    "traffic_logs/{logId}": {
+      "schema": "TrafficLog",
+      "description": "Collection of traffic logs."
+    },
+    "test/connection": {
+      "schema": "TestConnection",
+      "description": "Single document for connection testing."
+    }
+  }
+}

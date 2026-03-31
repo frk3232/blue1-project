@@ -1,0 +1,131 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (matches request.auth.uid)
+    // Fields:
+    //   - uid: string (required) - The unique identifier for the user.
+    //   - email: string (required) - The user's email address.
+    //   - role: string (required, enum: ['user', 'admin']) - The user's role.
+    //   - createdAt: timestamp (required) - When the user profile was created.
+    //
+    // Collection: safety_hotspots
+    // Document ID: {hotspotId}
+    // Fields:
+    //   - locationName: string (required) - Name of the location.
+    //   - coordinates: map (required) - { lat: number, lng: number }
+    //   - riskLevel: string (required, enum: ['Low', 'Med', 'High']) - The risk level.
+    //
+    // Collection: traffic_logs
+    // Document ID: {logId}
+    // Fields:
+    //   - routeId: string (required) - Summary or ID of the route.
+    //   - currentTravelTime: number (required) - Travel time in seconds.
+    //   - timestamp: timestamp (required) - When the log was created.
+    //   - userId: string (required) - The UID of the user who generated the log.
+    //
+    // Collection: test
+    // Document ID: connection
+    // Fields:
+    //   - status: string (optional)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "fadlur775@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string &&
+        email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasRequiredFields(['uid', 'email', 'role', 'createdAt']) &&
+             hasOnlyAllowedFields(['uid', 'email', 'role', 'createdAt']) &&
+             data.uid is string && data.uid.size() > 0 &&
+             data.email is string && isValidEmail(data.email) &&
+             data.role in ['user', 'admin'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidSafetyHotspot(data) {
+      return hasRequiredFields(['locationName', 'coordinates', 'riskLevel']) &&
+             hasOnlyAllowedFields(['locationName', 'coordinates', 'riskLevel']) &&
+             data.locationName is string && data.locationName.size() > 0 &&
+             data.coordinates is map &&
+             data.coordinates.lat is number && data.coordinates.lng is number &&
+             data.riskLevel in ['Low', 'Med', 'High'];
+    }
+
+    function isValidTrafficLog(data) {
+      return hasRequiredFields(['routeId', 'currentTravelTime', 'timestamp', 'userId']) &&
+             hasOnlyAllowedFields(['routeId', 'currentTravelTime', 'timestamp', 'userId']) &&
+             data.routeId is string &&
+             data.currentTravelTime is number &&
+             data.timestamp is timestamp &&
+             data.userId is string && data.userId == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == 'user';
+      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == resource.data.role) || isAdmin();
+    }
+
+    match /safety_hotspots/{hotspotId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() && isValidSafetyHotspot(request.resource.data);
+    }
+
+    match /traffic_logs/{logId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isAuthenticated() && isValidTrafficLog(request.resource.data);
+      allow update, delete: if false; // Logs are immutable
+    }
+
+    match /test/connection {
+      allow read: if isAuthenticated();
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
