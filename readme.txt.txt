@@ -90,3 +90,5 @@ npm install
 Run the project
 
 npm start
+
+project link https://ais-pre-lnwidcxrtzg6gt3hv57p24-661242320642.asia-east1.run.app/
