@@ -9,7 +9,9 @@ const __dirname = path.dirname(__filename);
 async function startServer() {
   const app = express();
   const PORT = 3000;
-  const mode = process.env.NODE_ENV || "development";
+  
+  // Default to production mode if NODE_ENV is not set
+  const mode = process.env.NODE_ENV || "production";
 
   console.log(`Starting server in ${mode} mode...`);
 
@@ -20,6 +22,10 @@ async function startServer() {
       mode: mode,
       time: new Date().toISOString()
     });
+  });
+
+  app.get("/api/ping", (req, res) => {
+    res.send("pong");
   });
 
   // Vite middleware for development
@@ -38,21 +44,32 @@ async function startServer() {
     
     if (!fs.existsSync(distPath)) {
       console.error("CRITICAL ERROR: 'dist' directory not found! Have you run 'npm run build'?");
-    }
-
-    app.use(express.static(distPath));
-    
-    // Fallback to index.html for SPA routing
-    app.get("*", (req, res) => {
-      console.log(`SPA Fallback: ${req.method} ${req.url}`);
-      const indexPath = path.resolve(distPath, "index.html");
-      if (fs.existsSync(indexPath)) {
-        res.sendFile(indexPath);
+      // Fallback to root index.html if dist is missing
+      const rootIndex = path.resolve(__dirname, "index.html");
+      if (fs.existsSync(rootIndex)) {
+        console.warn("Falling back to root index.html");
+        app.use(express.static(__dirname));
+        app.get("*", (req, res) => res.sendFile(rootIndex));
       } else {
-        console.error("CRITICAL ERROR: index.html not found in dist!");
-        res.status(404).send("Application not found. Please check build status.");
+        app.get("*", (req, res) => {
+          res.status(404).send("Application not found. Please check build status.");
+        });
       }
-    });
+    } else {
+      app.use(express.static(distPath));
+      
+      // Fallback to index.html for SPA routing
+      app.get("*", (req, res) => {
+        console.log(`SPA Fallback: ${req.method} ${req.url}`);
+        const indexPath = path.resolve(distPath, "index.html");
+        if (fs.existsSync(indexPath)) {
+          res.sendFile(indexPath);
+        } else {
+          console.error("CRITICAL ERROR: index.html not found in dist!");
+          res.status(404).send("Application not found. Please check build status.");
+        }
+      });
+    }
   }
 
   app.listen(PORT, "0.0.0.0", () => {
